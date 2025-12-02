@@ -5,8 +5,11 @@
 #include <cmath>
 #include <regex>
 #include <algorithm>
+#include <unordered_set>
+#include <chrono>
 
 int main() {
+    auto start = std::chrono::high_resolution_clock::now();
     std::ifstream file("input");
     std::string line;
     if (!file.is_open()) return 0;
@@ -14,6 +17,7 @@ int main() {
     long sum = 0;
     std::regex del("-");
     std::vector<std::string> results; results.resize(2);
+    std::unordered_set<long> localSet;
 
     while (std::getline(file, line)) {
         long localSum = 0;
@@ -36,25 +40,85 @@ int main() {
         results.clear();
 
         for (int i = leftDigits; i <= rightDigits; i++) {
-            if (i % 2 != 0) continue;
-            long lower = leftStart;
-            if (i != leftDigits) lower = pow(10, i / 2 - 1);
-            long curr = 0;
-            while (lower < pow(10, i / 2)) {
-                curr = lower * pow(10, i / 2) + lower;
-                if (curr >= leftLimit && curr <= rightLimit) localSum += curr;
-                if (curr > rightLimit) break;
-                lower++;
+            if (i == 1) continue;
+
+            // 1 x n
+            long curr = pow(10, 1 - 1);
+            while (curr < pow(10, 1)) {
+                long temp = curr;
+                for (int j = 1; j < i; j++) temp += curr * pow(10, j);
+                if (temp >= leftLimit && temp <= rightLimit) localSet.emplace(temp);
+                if (temp > rightLimit) break;
+                curr++;
+            }   
+
+            // 2 x n
+            if (i == 4 || i == 6 || i == 8 || i == 10) {
+                long curr = pow(10, 2 - 1);
+                while (curr < pow(10, 2)) {
+                    long temp = curr;
+                    for (int j = 2; j < i; j += 2) temp += curr * pow(10, j);
+                    if (temp >= leftLimit && temp <= rightLimit) localSet.emplace(temp);
+                    if (temp > rightLimit) break;
+                    curr++;
+                }   
             }
-            if (curr > rightLimit) break;
+
+            // 3 x n
+            if (i == 6 || i == 9) {
+                long curr = pow(10, 3 - 1);
+                while (curr < pow(10, 3)) {
+                    long temp = curr;
+                    for (int j = 3; j < i; j += 3) temp += curr * pow(10, j);
+                    if (temp >= leftLimit && temp <= rightLimit) localSet.emplace(temp);
+                    if (temp > rightLimit) break;
+                    curr++;
+                }
+            }
+
+            // 4 x 2
+            if (i == 8) {
+                long curr = pow(10, 4 - 1);
+                while (curr < pow(10, 4)) {
+                    long temp = curr;
+                    for (int j = 4; j < i; j += 4) temp += curr * pow(10, j);
+                    if (temp >= leftLimit && temp <= rightLimit) localSet.emplace(temp);
+                    if (temp > rightLimit) break;
+                    curr++;
+                }
+            }
+
+            // 5 x 2
+            if (i == 10) {
+                long curr = pow(10, 5 - 1);
+                while (curr < pow(10, 5)) {
+                    long temp = curr;
+                    for (int j = 5; j < i; j += 5) temp += curr * pow(10, j);
+                    if (temp >= leftLimit && temp <= rightLimit) localSet.emplace(temp);
+                    if (temp > rightLimit) break;
+                    curr++;
+                }
+            }
         }
+        
+        // Add all
+        for (auto it = localSet.begin(); it != localSet.end(); it++) {
+            //std::cout << *it << " + ";
+            localSum += *it;
+        }
+        //std::cout << "= ";
+        //std::cout << localSum << std::endl;
 
         sum += localSum;
-        std::cout << localSum << std::endl;
+        localSet.clear();
     }
     file.close();
 
     std::cout << sum << std::endl;
+
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    std::cout << duration.count() << " ms" << std::endl;
 
     return 0;
 }

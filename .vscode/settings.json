@@ -56,6 +56,15 @@
         "algorithm": "cpp",
         "optional": "cpp",
         "regex": "cpp",
-        "vector": "cpp"
+        "vector": "cpp",
+        "list": "cpp",
+        "unordered_set": "cpp",
+        "xhash": "cpp",
+        "print": "cpp",
+        "chrono": "cpp",
+        "forward_list": "cpp",
+        "iomanip": "cpp",
+        "ratio": "cpp",
+        "sstream": "cpp"
     }
 }

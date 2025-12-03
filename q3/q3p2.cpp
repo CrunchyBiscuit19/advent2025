@@ -22,7 +22,8 @@ int main() {
     // Answer
     long out = 0;
     std::multiset<long> bankSet;
-    std::unordered_map<int, std::priority_queue<int>> bankIndices;
+    std::unordered_map<int, std::priority_queue<int, std::vector<int>, std::greater<int>>> bankIndices;
+    std::priority_queue<int, std::vector<int>, std::greater<int>> testIndices;
     while (std::getline(file, line)) {
         long localMax = 0;
         for (int i = 0; i < line.size() - 1; i++) {
@@ -31,21 +32,35 @@ int main() {
             bankIndices.try_emplace(enteredBattery);
             bankIndices.at(enteredBattery).push(i);
         }
-        for (auto i : bankIndices) {
-            std::cout << i.first << " \t\t\t ";
-            while (!bankIndices.at(i.first).empty()) {
-                std::cout << bankIndices.at(i.first).top() << " ";
-                bankIndices.at(i.first).pop();
-            }
-            std::cout << std::endl; 
-        }
-        /*for (int i = 0; i < line.size() - 12 - 1; i++) {
+        auto bankIndicesCopy = bankIndices;
+        for (int i = 0; i < line.size() - 12; i++) {
+            long testMax = 0;
+
+            // Get leading digit index
             long removedBattery = static_cast<long>(line[i] - '0');
+            int removedBatteryIndex = bankIndices.at(removedBattery).top(); 
+            bankIndices.at(removedBattery).pop();
+            bankIndicesCopy.at(removedBattery).pop();
+            testIndices.push(removedBatteryIndex);
             bankSet.erase(bankSet.find(removedBattery));
-            long innerMax = *std::prev(bankSet.end());
-            localMax = std::max(localMax, removedBattery * 10 + innerMax);
+
+            // Get other 11 digits indices
+            auto testTrav = std::prev(bankSet.end());
+            for (int j = 0; j < 11; j++) {
+                testIndices.push(bankIndicesCopy.at(*testTrav).top()); 
+                bankIndicesCopy.at(*testTrav).pop();
+                testTrav = std::prev(testTrav);
+            }
+
+            // Create local test number
+            for (int j = 11; !testIndices.empty(); j--) {
+                testMax += (line[testIndices.top()] - '0') * std::pow(10, j); 
+                testIndices.pop();
+            }
+            localMax = std::max(localMax, testMax);
         }
-        out += localMax;*/
+        std::cout << "LocalMax " << localMax << std::endl;
+        out += localMax;
         bankSet.clear();
         bankIndices.clear();
     }

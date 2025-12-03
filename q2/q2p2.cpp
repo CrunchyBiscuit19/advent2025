@@ -8,6 +8,17 @@
 #include <unordered_set>
 #include <chrono>
 
+void addSet(std::unordered_set<long>& localSet, int factor, int i, long leftLimit, long rightLimit) {
+    long curr = pow(10, factor - 1);
+    while (curr < pow(10, factor)) {
+        long temp = curr;
+        for (int j = factor; j < i; j += factor) temp += curr * pow(10, j);
+        if (temp >= leftLimit && temp <= rightLimit) localSet.emplace(temp);
+        if (temp > rightLimit) break;
+        curr++;
+    }   
+}
+
 int main() {
     auto start = std::chrono::high_resolution_clock::now();
     std::ifstream file("input");
@@ -41,73 +52,11 @@ int main() {
 
         for (int i = leftDigits; i <= rightDigits; i++) {
             if (i == 1) continue;
-
-            // 1 x n
-            long curr = pow(10, 1 - 1);
-            while (curr < pow(10, 1)) {
-                long temp = curr;
-                for (int j = 1; j < i; j++) temp += curr * pow(10, j);
-                if (temp >= leftLimit && temp <= rightLimit) localSet.emplace(temp);
-                if (temp > rightLimit) break;
-                curr++;
-            }   
-
-            // 2 x n
-            if (i == 4 || i == 6 || i == 8 || i == 10) {
-                long curr = pow(10, 2 - 1);
-                while (curr < pow(10, 2)) {
-                    long temp = curr;
-                    for (int j = 2; j < i; j += 2) temp += curr * pow(10, j);
-                    if (temp >= leftLimit && temp <= rightLimit) localSet.emplace(temp);
-                    if (temp > rightLimit) break;
-                    curr++;
-                }   
-            }
-
-            // 3 x n
-            if (i == 6 || i == 9) {
-                long curr = pow(10, 3 - 1);
-                while (curr < pow(10, 3)) {
-                    long temp = curr;
-                    for (int j = 3; j < i; j += 3) temp += curr * pow(10, j);
-                    if (temp >= leftLimit && temp <= rightLimit) localSet.emplace(temp);
-                    if (temp > rightLimit) break;
-                    curr++;
-                }
-            }
-
-            // 4 x 2
-            if (i == 8) {
-                long curr = pow(10, 4 - 1);
-                while (curr < pow(10, 4)) {
-                    long temp = curr;
-                    for (int j = 4; j < i; j += 4) temp += curr * pow(10, j);
-                    if (temp >= leftLimit && temp <= rightLimit) localSet.emplace(temp);
-                    if (temp > rightLimit) break;
-                    curr++;
-                }
-            }
-
-            // 5 x 2
-            if (i == 10) {
-                long curr = pow(10, 5 - 1);
-                while (curr < pow(10, 5)) {
-                    long temp = curr;
-                    for (int j = 5; j < i; j += 5) temp += curr * pow(10, j);
-                    if (temp >= leftLimit && temp <= rightLimit) localSet.emplace(temp);
-                    if (temp > rightLimit) break;
-                    curr++;
-                }
-            }
+            for (int j = 1; j <= 5; j++) if (i % j == 0 && i != j) addSet(localSet, j, i, leftLimit, rightLimit);
         }
         
         // Add all
-        for (auto it = localSet.begin(); it != localSet.end(); it++) {
-            //std::cout << *it << " + ";
-            localSum += *it;
-        }
-        //std::cout << "= ";
-        //std::cout << localSum << std::endl;
+        for (auto it = localSet.begin(); it != localSet.end(); it++) localSum += *it;
 
         sum += localSum;
         localSet.clear();

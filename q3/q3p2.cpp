@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <queue>
 #include <chrono>
+#include <cassert>
 
 int main() {
     // Timer start
@@ -21,51 +22,71 @@ int main() {
 
     // Answer
     long out = 0;
-    std::multiset<long> bankSet;
-    std::unordered_map<int, std::priority_queue<int, std::vector<int>, std::greater<int>>> bankIndices;
-    std::priority_queue<int, std::vector<int>, std::greater<int>> testIndices;
+    std::string constructedInt = "            "; // 12 spaces for 12 integers
     while (std::getline(file, line)) {
-        long localMax = 0;
-        for (int i = 0; i < line.size() - 1; i++) {
-            long enteredBattery = static_cast<long>(line[i] - '0');
-            bankSet.insert(enteredBattery);
+        long lineMax = 0;
+
+        // Store per-bank indices of each individual digit
+        std::unordered_map<int, std::priority_queue<int, std::vector<int>, std::greater<int>>> bankIndices;
+        for (int i = 0; i < line.size(); i++) { 
+            int enteredBattery = line[i] - '0';
             bankIndices.try_emplace(enteredBattery);
             bankIndices.at(enteredBattery).push(i);
         }
-        auto bankIndicesCopy = bankIndices;
-        for (int i = 0; i < line.size() - 12; i++) {
-            long testMax = 0;
+        auto bankIndicesCopy = bankIndices;        
+        
+        // Test at each starting point
+        for (int i = 0; i <= line.size() - 12; i++) {
+            int constructedDigits = 0;
+            bankIndicesCopy = bankIndices;
+            // Initialize for each starting point
+            constructedInt[0] = line[i];
+            bankIndices.at(line[i] - '0').pop();
+            bankIndicesCopy.at(line[i] - '0').pop();
+            constructedDigits++;
+            int windowStart = i + 1;
+            int digitsRemaining = 10;
+            int windowSize = line.size() - digitsRemaining - windowStart;
 
-            // Get leading digit index
-            long removedBattery = static_cast<long>(line[i] - '0');
-            int removedBatteryIndex = bankIndices.at(removedBattery).top(); 
-            bankIndices.at(removedBattery).pop();
-            bankIndicesCopy.at(removedBattery).pop();
-            testIndices.push(removedBatteryIndex);
-            bankSet.erase(bankSet.find(removedBattery));
-
-            // Get other 11 digits indices
-            auto testTrav = std::prev(bankSet.end());
-            for (int j = 0; j < 11; j++) {
-                testIndices.push(bankIndicesCopy.at(*testTrav).top()); 
-                bankIndicesCopy.at(*testTrav).pop();
-                testTrav = std::prev(testTrav);
+            // Pop from, adjust, and creating sliding window until windowSize == 1
+            while (windowSize > 1 && constructedDigits != 12) {
+                // Construct slidingWindow
+                std::priority_queue<int> slidingWindow;
+                for (int j = 0; j < windowSize; j++) slidingWindow.push(line[windowStart + j] - 48); // 'n' -> n
+                 // Place max in slidingWindow into string
+                constructedInt[12 - digitsRemaining - 1] = static_cast<char>(slidingWindow.top() + 48); // n -> 'n'
+                constructedDigits++;
+                // Adjust window settings for next iteration
+                windowStart = bankIndicesCopy.at(slidingWindow.top()).top() + 1;
+                
+                digitsRemaining--;
+                windowSize = line.size() - digitsRemaining - windowStart;
+                // Pop the leftmost index of the biggest integer within the sliding window
+                while (!slidingWindow.empty() && !bankIndicesCopy.at(slidingWindow.top()).empty() && bankIndicesCopy.at(slidingWindow.top()).top() < windowStart) {
+                    bankIndicesCopy.at(slidingWindow.top()).pop();
+                }
             }
 
-            // Create local test number
-            for (int j = 11; !testIndices.empty(); j--) {
-                testMax += (line[testIndices.top()] - '0') * std::pow(10, j); 
-                testIndices.pop();
+            // Add rest after only 1 substring is left available
+            if (constructedDigits < 12) {
+                for (int j = windowStart; j < line.size(); j++) {
+                    constructedInt[12 - digitsRemaining - 1] = line[j];
+                    digitsRemaining--;
+                }
             }
-            localMax = std::max(localMax, testMax);
-        }
-        std::cout << "LocalMax " << localMax << std::endl;
-        out += localMax;
-        bankSet.clear();
-        bankIndices.clear();
+
+            // Update max of each line
+            //std::cout << "Constructed " << constructedInt << std::endl;
+            lineMax = std::max(lineMax, std::stol(constructedInt));
+            
+            constructedInt = "            ";
+       }
+
+       std::cout << "Line Max " << lineMax << std::endl;
+       out += lineMax;
     }
     file.close();
-    std::cout << "Max " << out << std::endl;
+    std::cout << "Out Max " << out << std::endl;
 
     // Timer end
     auto stop = std::chrono::high_resolution_clock::now();

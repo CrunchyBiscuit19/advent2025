@@ -10,8 +10,8 @@
 #include <queue>
 #include <chrono>
 
-//#define NUM_LINES 137
-#define NUM_LINES 10
+#define NUM_LINES 137
+//#define NUM_LINES 10
 #define LINE_LENGTH NUM_LINES
 #define UP -NUM_LINES
 #define DOWN +NUM_LINES
@@ -41,21 +41,33 @@ int main() {
         map.append(line);
     }
     file.close();
-    for (int i = 0; i < map.size(); i++) {
-        if (map[i] == FREE) continue;
-        int free = 0; int paper = 0;
-        if (i + UP < 0 || map[i + UP] == FREE) free++;
-        if (i + DOWN > map.size() - 1 || map[i + DOWN] == FREE) free++;
-        if (i + LEFT < i / LINE_LENGTH * LINE_LENGTH || map[i + LEFT] == FREE) free++;
-        if (i + RIGHT > i / LINE_LENGTH * LINE_LENGTH + LINE_LENGTH - 1 || map[i + RIGHT] == FREE) free++;
-        if (i < LINE_LENGTH || i % LINE_LENGTH == 0 || map[i + DUL] == FREE) free++;
-        if (i < LINE_LENGTH || i % LINE_LENGTH == LINE_LENGTH - 1 || map[i + DUR] == FREE) free++;
-        if (i >= (NUM_LINES - 1) * LINE_LENGTH || i % LINE_LENGTH == 0 || map[i + DDL] == FREE) free++;
-        if (i >= (NUM_LINES - 1) * LINE_LENGTH || i % LINE_LENGTH == LINE_LENGTH - 1 || map[i + DDR] == FREE) free++;
-        paper = 8 - free;
-        if (paper < 4) out++;
-        //std::cout << "i " << i << ", paper " << paper << std::endl;
-    }
+    std::vector<int> removePaperIndices; removePaperIndices.reserve(NUM_LINES * LINE_LENGTH);
+    int localOut = 0;
+    do {
+        localOut = 0;
+        for (int i = 0; i < map.size(); i++) {
+            if (map[i] == FREE) continue;
+            int free = 0; int paper = 0;
+            if (i + UP < 0 || map[i + UP] == FREE) free++;
+            if (i + DOWN > map.size() - 1 || map[i + DOWN] == FREE) free++;
+            if (i + LEFT < i / LINE_LENGTH * LINE_LENGTH || map[i + LEFT] == FREE) free++;
+            if (i + RIGHT > i / LINE_LENGTH * LINE_LENGTH + LINE_LENGTH - 1 || map[i + RIGHT] == FREE) free++;
+            if (i < LINE_LENGTH || i % LINE_LENGTH == 0 || map[i + DUL] == FREE) free++;
+            if (i < LINE_LENGTH || i % LINE_LENGTH == LINE_LENGTH - 1 || map[i + DUR] == FREE) free++;
+            if (i >= (NUM_LINES - 1) * LINE_LENGTH || i % LINE_LENGTH == 0 || map[i + DDL] == FREE) free++;
+            if (i >= (NUM_LINES - 1) * LINE_LENGTH || i % LINE_LENGTH == LINE_LENGTH - 1 || map[i + DDR] == FREE) free++;
+            paper = 8 - free;
+            if (paper < 4) {
+                localOut++;
+                removePaperIndices.push_back(i);
+            }
+        }
+        for (int i = 0; i < removePaperIndices.size(); i++) {
+            map[removePaperIndices[i]] = FREE; 
+        }
+        removePaperIndices.clear();
+        out += localOut;
+    } while (localOut > 0);
     std::cout << "Out " << out << std::endl;
 
     // Timer end

@@ -11,14 +11,12 @@
 #include <chrono>
 #include <format>
 
-
-
-int main() {
+int main(int argc, char *argv[]) {
     // Timer start
     auto start = std::chrono::high_resolution_clock::now();
     
     // Input handler
-    std::ifstream file("test1");
+    std::ifstream file(argv[1]);
     std::string line;
     if (!file.is_open()) return 0;
 
@@ -39,43 +37,67 @@ int main() {
         // Build the current range
         std::sregex_token_iterator it(line.begin(), line.end(), del, -1);
         std::sregex_token_iterator end;
-        for (int i = 0; it != end; it++) {
+        for (int i = 0; i < 2; i++) {
             if (i == 0) currRange.first = std::stol(*it);
             else currRange.second = std::stol(*it);
+            it++;
         }
-        minRep.first = currRange.first; // It doesn't matter what second is, only using these as queries
+        minRep.first = currRange.first; // It doesn't matter what minRep / maxRep second is, only using these as queries
         maxRep.first = currRange.second;
 
         // Get minimum and maximum iteators and values of new range after inserting current range
         long finalMin = currRange.first; long finalMax = currRange.second; 
-        bool minInRange = false; bool maxInRange = false; 
         auto minIt = std::lower_bound(ranges.rbegin(), ranges.rend(), minRep, [](const std::pair<long, long>& a, const std::pair<long, long>& b) {
             return a.first > b.first;
         });
         if (minIt != ranges.rend() && currRange.first <= minIt->first + minIt->second) { 
             finalMin = minIt->first;
-            minInRange = true;
         }
         auto maxIt = std::lower_bound(ranges.rbegin(), ranges.rend(), maxRep, [](const std::pair<long, long>& a, const std::pair<long, long>& b) {
             return a.first > b.first;
         });
-        if (maxIt != ranges.rend() && currRange.first <= maxIt->first - maxIt->second) {
-            finalMax = minIt->first + minIt->second;
-            maxInRange = true;
+        if (maxIt != ranges.rend() && currRange.second <= maxIt->first + maxIt->second) {
+            finalMax = maxIt->first + maxIt->second;
         }
 
+        // DEBUG 1
+        if (minIt != ranges.rend() && currRange.first <= minIt->first + minIt->second) std::cout << std::format("{} in range of {}-{}, ", currRange.first, minIt->first, minIt->first + minIt->second, finalMin);
+        else std::cout << std::format("{} not in range, ", currRange.first);
+        if (maxIt != ranges.rend() && currRange.second <= maxIt->first + maxIt->second) std::cout << std::format("{} in range of {}-{}, ", currRange.second, maxIt->first, maxIt->first + maxIt->second, finalMax);
+        else std::cout << std::format("{} not in range, ", currRange.second);
+        std::cout << std::endl;
+        
         // Delete all ranges in between minimum and maximum iterators, including minIt and maxIt if present
-        auto travIt = ranges.lower_bound(minRep);
-        while (travIt != ranges.end() && travIt->first <= maxIt->first) {
+        std::set<std::pair<long, long>, decltype(cmp)>::iterator travIt;
+        if (minIt != ranges.rend() && currRange.first <= minIt->first + minIt->second) {
+            travIt = ranges.find(std::pair<long, long>(minIt->first, 0)); // Re-find the range the minimum was in, with the iterator now in the forward position
+        } else {
+            travIt = ranges.upper_bound(minRep); // Find the immediate next range if the minimum isn't in a range 
+        }
+        // DEBUG 2
+        if (travIt == ranges.end()) {
+            std::cout << std::format("Range {}-{} will not be deleting", finalMin, finalMax) << std::endl;
+        } else {
+            std::cout << std::format("Range {}-{} will delete starting with {}-{}", finalMin, finalMax, travIt->first, travIt->first + travIt->second) << std::endl;
+        }
+        while (travIt != ranges.end() && travIt->first <= finalMax) {
+            std::cout << std::format("Deleting {}-{}", travIt->first, travIt->first + travIt->second) << std::endl;
             travIt = ranges.erase(travIt);
         }
-
+        
         // Insert new range into the set
-        ranges.insert(std::pair<long, long>(finalMin, finalMax));
+        ranges.insert(std::pair<long, long>(finalMin, finalMax - finalMin));
+        std::cout << std::format("Inserting {}-{}", finalMin, finalMax) << std::endl;
+
+        // DEBUG 3
+        std::cout << "Current ranges are ";
+        for (auto it = ranges.begin(); it != ranges.end(); it++) std::cout << std::format("{}-{} ", it->first, it->first + it->second);
+        std::cout << std::endl;
+        std::cout << std::endl;
     }
     file.close();
 
-    for (auto it = ranges.begin(); it != ranges.end(); it++) std::cout << std::format("{}-{}", it->first, it->second) << std::endl;
+    for (auto it = ranges.begin(); it != ranges.end(); it++) out += (1 + it->second);
     std::cout << "Out " << out << std::endl;
 
     // Timer end

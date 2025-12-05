@@ -28,60 +28,54 @@ int main() {
     std::regex del("-");
     std::set<std::pair<long, long>, decltype(cmp)> ranges;
     std::pair<long, long> currRange; 
+    std::pair<long, long> minRep; 
+    std::pair<long, long> maxRep; 
     while (std::getline(file, line)) {
-        std::cout << line << std::endl;
         line.erase(remove_if(line.begin(), line.end(), isspace), line.end()); // Strip all whitespaces from the lines
         if (line.size() == 0) break;
+
+        // This entire algorithm hinges on the invariant that there are no overlapping ranges within the set
         
+        // Build the current range
         std::sregex_token_iterator it(line.begin(), line.end(), del, -1);
         std::sregex_token_iterator end;
         for (int i = 0; it != end; it++) {
             if (i == 0) currRange.first = std::stol(*it);
             else currRange.second = std::stol(*it);
         }
+        minRep.first = currRange.first; // It doesn't matter what second is, only using these as queries
+        maxRep.first = currRange.second;
 
-        bool minInRange = true; bool maxInRange = true;
-        auto minIt = ranges.lower_bound(currRange);
-        if (minIt == ranges.end() || currRange.first >= minIt->first - minIt->second) minInRange = false;
-        auto maxIt = ranges.lower_bound(currRange);
-        if (maxIt == ranges.end() || currRange.first >= maxIt->first - maxIt->second) maxInRange = false;
+        // Get minimum and maximum iteators and values of new range after inserting current range
+        long finalMin = currRange.first; long finalMax = currRange.second; 
+        bool minInRange = false; bool maxInRange = false; 
+        auto minIt = std::lower_bound(ranges.rbegin(), ranges.rend(), minRep, [](const std::pair<long, long>& a, const std::pair<long, long>& b) {
+            return a.first > b.first;
+        });
+        if (minIt != ranges.rend() && currRange.first <= minIt->first + minIt->second) { 
+            finalMin = minIt->first;
+            minInRange = true;
+        }
+        auto maxIt = std::lower_bound(ranges.rbegin(), ranges.rend(), maxRep, [](const std::pair<long, long>& a, const std::pair<long, long>& b) {
+            return a.first > b.first;
+        });
+        if (maxIt != ranges.rend() && currRange.first <= maxIt->first - maxIt->second) {
+            finalMax = minIt->first + minIt->second;
+            maxInRange = true;
+        }
 
-        if (!minInRange && !maxInRange) {
-            std::pair<long, long> newMinRange = currRange;
-            newMinRange.second = newMinRange.second - newMinRange.first;
-            ranges.insert(newMinRange);
-            std::pair<long, long> newMaxRange = currRange;
-            newMaxRange.first = currRange.second;
-            newMaxRange.second = newMinRange.second;
-            ranges.insert(newMaxRange);
+        // Delete all ranges in between minimum and maximum iterators, including minIt and maxIt if present
+        auto travIt = ranges.lower_bound(minRep);
+        while (travIt != ranges.end() && travIt->first <= maxIt->first) {
+            travIt = ranges.erase(travIt);
         }
-        if (minInRange) {
-            long decreased = minInRange ? minIt->first : currRange.first;
-            auto newMinRange = *minIt;
-            auto newMaxRange = *maxIt;
-            newMaxRange.second = maxIt->first - decreased;
-            newMinRange.first = decreased;
-            newMinRange.second = maxIt->second;
 
-            
-        }
-        if (maxInRange) {
-            long increased = maxInRange ? maxIt->first : currRange.second;
-            auto newMinRange = *minIt;
-            auto newMaxRange = *maxIt;
-            newMinRange.second = increased - minIt->first;
-            newMaxRange.first = increased;
-            newMaxRange.second = minIt->second;
-            ranges.erase(minIt);
-            ranges.erase(maxIt);
-            ranges.insert(newMinRange);
-            ranges.insert(newMaxRange);
-            currRange.second = increased;
-        }
+        // Insert new range into the set
+        ranges.insert(std::pair<long, long>(finalMin, finalMax));
     }
     file.close();
 
-    for (auto it = rangesStart.begin(); it != rangesStart.end(); it++) std::cout << std::format("{}-{}", it->first, it->second) << std::endl;
+    for (auto it = ranges.begin(); it != ranges.end(); it++) std::cout << std::format("{}-{}", it->first, it->second) << std::endl;
     std::cout << "Out " << out << std::endl;
 
     // Timer end

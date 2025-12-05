@@ -60,13 +60,6 @@ int main(int argc, char *argv[]) {
             finalMax = maxIt->first + maxIt->second;
         }
 
-        // DEBUG 1
-        if (minIt != ranges.rend() && currRange.first <= minIt->first + minIt->second) std::cout << std::format("{} in range of {}-{}, ", currRange.first, minIt->first, minIt->first + minIt->second, finalMin);
-        else std::cout << std::format("{} not in range, ", currRange.first);
-        if (maxIt != ranges.rend() && currRange.second <= maxIt->first + maxIt->second) std::cout << std::format("{} in range of {}-{}, ", currRange.second, maxIt->first, maxIt->first + maxIt->second, finalMax);
-        else std::cout << std::format("{} not in range, ", currRange.second);
-        std::cout << std::endl;
-        
         // Delete all ranges in between minimum and maximum iterators, including minIt and maxIt if present
         std::set<std::pair<long, long>, decltype(cmp)>::iterator travIt;
         if (minIt != ranges.rend() && currRange.first <= minIt->first + minIt->second) {
@@ -74,26 +67,12 @@ int main(int argc, char *argv[]) {
         } else {
             travIt = ranges.upper_bound(minRep); // Find the immediate next range if the minimum isn't in a range 
         }
-        // DEBUG 2
-        if (travIt == ranges.end()) {
-            std::cout << std::format("Range {}-{} will not be deleting", finalMin, finalMax) << std::endl;
-        } else {
-            std::cout << std::format("Range {}-{} will delete starting with {}-{}", finalMin, finalMax, travIt->first, travIt->first + travIt->second) << std::endl;
-        }
         while (travIt != ranges.end() && travIt->first <= finalMax) {
-            std::cout << std::format("Deleting {}-{}", travIt->first, travIt->first + travIt->second) << std::endl;
             travIt = ranges.erase(travIt);
         }
         
         // Insert new range into the set
         ranges.insert(std::pair<long, long>(finalMin, finalMax - finalMin));
-        std::cout << std::format("Inserting {}-{}", finalMin, finalMax) << std::endl;
-
-        // DEBUG 3
-        std::cout << "Current ranges are ";
-        for (auto it = ranges.begin(); it != ranges.end(); it++) std::cout << std::format("{}-{} ", it->first, it->first + it->second);
-        std::cout << std::endl;
-        std::cout << std::endl;
     }
     file.close();
 

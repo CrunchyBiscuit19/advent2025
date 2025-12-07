@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <set>
 #include <unordered_map>
+#include <unordered_set>
 #include <queue>
 #include <chrono>
 #include <print>
@@ -15,25 +16,6 @@
 //#define LINE_NUMS (143 - 1)
 #define LINE_LENGTH (16 - 1) 
 #define LINE_NUMS (17 - 1)
-
-void pathfind(long source, std::string& map, std::unordered_map<long, long>& splitters, long parent) {
-    long trav = source;
-    // Travel until splitter
-    while (trav <= map.size() && map[trav] != '^') {
-        if (map[trav] != 'S') map[trav] = '|';
-        trav += LINE_LENGTH;
-    }
-    // Stop if at end of map
-    if (trav > map.size()) return;
-    // Split and record new sources
-    splitters.emplace(trav, 0);
-    if (trav == 126) {
-        std::println("{} received {} paths from {}", trav, splitters.at(parent), parent);
-    }
-    splitters.at(trav) += splitters.at(parent);
-    pathfind(trav - 1, map, splitters, trav);
-    pathfind(trav + 1, map, splitters, trav);
-}
 
 int main(int argc, char *argv[]) {
     // Timer start
@@ -47,28 +29,77 @@ int main(int argc, char *argv[]) {
     // Build map
     long out = 0;
     std::string map; map.reserve(LINE_LENGTH * LINE_LENGTH);
-    std::unordered_map<long, long> splitters;
+    std::unordered_map<long, long> numPaths;
+    std::queue<long> queue;
+    std::unordered_set<long> joinedQueue;
+    std::unordered_map<long, std::unordered_set<long>> parents;
     while (std::getline(file, line)) {
         line.erase(remove_if(line.begin(), line.end(), isspace), line.end());
         map.append(line);
     }
     file.close();
     
-    // Find source
-    long firstSourcePos = 0;
+    // Find first node
+    long firstNodePos = 0;
     for (int i = 0; i < LINE_LENGTH; i++) {
         if (map[i] == 'S') {
-            firstSourcePos = i;
+            while (map[i] != '^') i += LINE_LENGTH;
+            firstNodePos = i;
             break;
         }
     }
+    numPaths.emplace(firstNodePos, 1);
 
-    // Pathfind
-    splitters.emplace(-1, 1);
-    pathfind(firstSourcePos, map, splitters, -1);
+    // BFS
+    queue.push(firstNodePos);
+    while (!queue.empty()) {
+        // Get node
+        long currNode = queue.front();
+        queue.pop();
 
-    for (auto it = splitters.begin(); it != splitters.end(); it++) std::println("[{}, {}]", it->first, it->second);
-    std::println("Out {}", splitters.size());
+        // Find neighbours
+        long leftTrav = currNode - 1;
+        long rightTrav = currNode + 1;
+        while (leftTrav <= map.size() && map[leftTrav] != '^') {
+            if (map[leftTrav] != 'S') map[leftTrav] = '|';
+            leftTrav += LINE_LENGTH;
+        }
+        while (rightTrav <= map.size() && map[rightTrav] != '^') {
+            if (map[rightTrav] != 'S') map[rightTrav] = '|';
+            rightTrav += LINE_LENGTH;
+        }
+
+        // Update number of paths at each node, and continue only if valid
+        if (leftTrav < map.size()) {
+            if (!joinedQueue.contains(leftTrav)) { 
+                queue.push(leftTrav);
+                joinedQueue.insert(leftTrav);
+            }
+            numPaths.emplace(leftTrav, 0);
+            numPaths.at(leftTrav) += numPaths.at(currNode);
+        } 
+        if (rightTrav < map.size()) { 
+            if (!joinedQueue.contains(rightTrav)) { 
+                queue.push(rightTrav);
+                joinedQueue.insert(rightTrav);
+            }
+            numPaths.emplace(rightTrav, 0);
+            numPaths.at(rightTrav) += numPaths.at(currNode);
+        }
+    }
+    
+    // DEBUG
+    for (auto it = numPaths.begin(); it != numPaths.end(); it++) std::println("[{}, {}]", it->first, it->second);
+    /*for (auto it = parents.begin(); it != parents.end(); it++) {
+        std::print("{}: ", it->first);
+        for (auto it1 = it->second.begin(); it1 != it->second.end(); it1++) {
+            std::print("{}, ", *it1);
+        }
+        std::println();
+    }*/
+
+    // Output
+    std::println("Out {}", numPaths.size());
 
     // Timer end
     auto stop = std::chrono::high_resolution_clock::now();

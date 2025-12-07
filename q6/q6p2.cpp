@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <queue>
 #include <chrono>
-#include <format>
+#include <print>
 
 //#define NUM_LINES 5
 #define NUM_LINES 5
@@ -70,8 +70,7 @@ int main(int argc, char *argv[]) {
             operands.push_back(std::stol(operand));
         }
     }
-
-    std::cout << "Out " << out << std::endl;
+    std::println("Out {}", out);
 
     // Timer end
     auto stop = std::chrono::high_resolution_clock::now();

@@ -12,10 +12,12 @@
 #include <chrono>
 #include <print>
 
-#define LINE_LENGTH (142 - 1)
-#define LINE_NUMS (143 - 1)
-//#define LINE_LENGTH (16 - 1) 
-//#define LINE_NUMS (17 - 1)
+//#define LINE_LENGTH (142 - 1)
+//#define LINE_NUMS (143 - 1)
+#define LINE_LENGTH (16 - 1) 
+#define LINE_NUMS (17 - 1)
+
+using Coords = std::pair<long, long>;
 
 int main(int argc, char *argv[]) {
     // Timer start
@@ -27,67 +29,81 @@ int main(int argc, char *argv[]) {
     if (!file.is_open()) return 0;
 
     // Build map
+    auto hashFn = [](const Coords& k) { return std::hash<long>()(k.first) ^ (std::hash<long>()(k.second) << 1); };
+    auto eqFn = [](const Coords& a, const Coords& b) { return a.first == b.first && a.second == b.second; };
+    auto cmpFn = [](const Coords& a, const Coords& b) { 
+        if (a.first == b.first) return a.second < b.second;
+        return a.first < b.first; 
+    };
+    auto inverseCmpFn = [](const Coords& a, const Coords& b) { 
+        if (a.first == b.first) return a.second > b.second;
+        return a.first > b.first; 
+    };
+    std::vector<std::string> map; map.reserve(LINE_NUMS);
+    std::unordered_map<Coords, long, decltype(hashFn), decltype(eqFn)> numPaths;
+    std::priority_queue<Coords, std::vector<Coords>, decltype(inverseCmpFn)> queue;
+    std::unordered_set<Coords, decltype(hashFn), decltype(eqFn)> enqueued;
+
     long out = 0;
-    std::string map; map.reserve(LINE_LENGTH * LINE_LENGTH);
-    std::unordered_map<long, long> numPaths;
-    std::priority_queue<long, std::vector<long>, std::greater<long>> minHeap;
-    std::unordered_set<long> joinedHeap;
     while (std::getline(file, line)) {
         line.erase(remove_if(line.begin(), line.end(), isspace), line.end());
-        map.append(line);
+        map.emplace_back(line);
     }
     file.close();
     
     // Find first node
-    long firstNodePos = 0;
+    Coords firstNodePos;
     for (int i = 0; i < LINE_LENGTH; i++) {
-        if (map[i] == 'S') {
-            while (map[i] != '^') i += LINE_LENGTH;
-            firstNodePos = i;
+        if (map[0][i] == 'S') {
+            long j = 0;
+            while (map[j][i] != '^') j++;
+            firstNodePos = Coords(j, i);
             break;
         }
     }
-    numPaths.emplace(firstNodePos, 1);
+    numPaths.emplace(firstNodePos, 1L);
 
     // BFS
-    minHeap.push(firstNodePos);
-    while (!minHeap.empty()) {
+    queue.push(firstNodePos);
+    while (!queue.empty()) {
         // Get node
-        long currNode = minHeap.top();
-        minHeap.pop();
+        Coords currNode = queue.top();
+        queue.pop();
 
         // Quit at leaf nodes
-        if (currNode >= map.size() - LINE_LENGTH) {
+        if (currNode.first >= LINE_NUMS - 1) {
             out += numPaths.at(currNode);
             continue;
         }
 
         // Find neighbours
-        long leftTrav = currNode - 1;
-        long rightTrav = currNode + 1;
-        while (leftTrav < map.size() - LINE_LENGTH && map[leftTrav] != '^') {
-            if (map[leftTrav] != 'S') map[leftTrav] = '|';
-            leftTrav += LINE_LENGTH;
+        Coords leftTrav = Coords(currNode.first, currNode.second - 1);
+        Coords rightTrav = Coords(currNode.first, currNode.second + 1);
+        while (leftTrav.first < LINE_NUMS - 1 && map[leftTrav.first][leftTrav.second] != '^') {
+            if (map[leftTrav.first][leftTrav.second] != 'S') map[leftTrav.first][leftTrav.second] = '|';
+            leftTrav.first++;
         }
-        while (rightTrav < map.size() - LINE_LENGTH && map[rightTrav] != '^') {
-            if (map[rightTrav] != 'S') map[rightTrav] = '|';
-            rightTrav += LINE_LENGTH;
+        while (rightTrav.first < LINE_NUMS - 1 && map[rightTrav.first][rightTrav.second] != '^') {
+            if (map[rightTrav.first][rightTrav.second] != 'S') map[rightTrav.first][rightTrav.second] = '|';
+            rightTrav.first++;
         }
 
         // Update number of paths at each node, and continue only if valid
-        if (!joinedHeap.contains(leftTrav)) { 
-            minHeap.push(leftTrav);
-            joinedHeap.insert(leftTrav);
+        if (!enqueued.contains(leftTrav)) { 
+            queue.push(leftTrav);
+            enqueued.insert(leftTrav);
         }
         numPaths.emplace(leftTrav, 0);
         numPaths.at(leftTrav) += numPaths.at(currNode);
-        if (!joinedHeap.contains(rightTrav)) { 
-            minHeap.push(rightTrav);
-            joinedHeap.insert(rightTrav);
+        if (!enqueued.contains(rightTrav)) { 
+            queue.push(rightTrav);
+            enqueued.insert(rightTrav);
         }
         numPaths.emplace(rightTrav, 0);
         numPaths.at(rightTrav) += numPaths.at(currNode);
     }
+
+    for (auto it = numPaths.begin(); it != numPaths.end(); it++) std::println("[{}, {}] = {}", it->first.first, it->first.second, it->second);
     
     // Output
     std::println("Out {}", out);

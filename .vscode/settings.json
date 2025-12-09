@@ -70,6 +70,10 @@
         "set": "cpp",
         "xtree": "cpp",
         "deque": "cpp",
-        "queue": "cpp"
+        "queue": "cpp",
+        "ranges": "cpp",
+        "array": "cpp",
+        "functional": "cpp",
+        "span": "cpp"
     }
 }

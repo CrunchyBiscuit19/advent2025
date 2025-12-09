@@ -59,6 +59,12 @@ struct Distance {
     Distance(Coord& from, Coord& to) : from(from), to(to) { // Should be fine. We only need relative distance.
         squaredDistance = std::pow(from.x - to.x, 2) + std::pow(from.y - to.y, 2) + std::pow(from.z - to.z, 2);
     }
+
+    struct Comp {
+        bool operator()(const Distance& a, const Distance& b) const noexcept {
+            return a.squaredDistance < b.squaredDistance;
+        }
+    };
 };
 template <>
 struct std::formatter<Distance> : std::formatter<std::string> {
@@ -121,14 +127,27 @@ public:
     }
 };
 
-void dividePoints(std::vector<Coord>& points, long start, long end) {
-    /*std::print("{}, {} ", start, end);
-    for (int i = start; i <= end; i++) std::print("{}, ", points[i]);
-    std::println();*/
-    if (end - start + 1 <= 3) return; 
-    long mid = start + (end + 1 - start) / 2;
-    dividePoints(points, start, mid - 1);
-    dividePoints(points, mid, end);
+void radixSort(std::vector<Distance>& sqDistances, long maxDigits) {
+	long base = 10;
+	std::vector<std::vector<Distance>> holder;
+    holder.resize(base);
+
+	// Iterate over each digit (w)
+	for (long sig = 0; sig < maxDigits; sig++) {
+		// Iterate over each number (n) at current digit and place into holder accordingly
+		for (long i = 0; i < sqDistances.size(); i++) {
+            long digit = static_cast<long>(sqDistances[i].squaredDistance / std::pow(base, sig)) % base;
+            holder[digit].emplace_back(sqDistances[i]);
+		}
+		// Iterate over each digit in the base (k) and place it's subarrays elements back into a in order
+		long index = 0;
+		for (long i = 0; i < base; i++) {
+			for (int j = 0; j < holder[i].size(); j++) {
+				sqDistances[index++] = holder[i][j];
+			}
+			holder[i].clear();
+		}
+	}
 }
 
 int main(int argc, char *argv[]) {
@@ -140,7 +159,7 @@ int main(int argc, char *argv[]) {
     std::string line;
     if (!file.is_open()) return 0;
 
-    // Answer
+    // Get all points
     long out = 0;
     std::vector<Coord> points;
     std::regex del(",");
@@ -166,10 +185,31 @@ int main(int argc, char *argv[]) {
     }
     file.close();
 
-    std::sort(points.begin(), points.end(), Coord::Comp());
-    //for (auto it = points.begin(); it != points.end(); it++) std::println("{}", *it);
-    dividePoints(points, 0, points.size() - 1);
-    
+    // Get all squared distances
+    std::vector<Distance> sqDistances;
+    for (auto it = points.begin(); it != points.end(); it++) { 
+        auto& currPoint = *it;
+        for (auto innerIt = std::next(it); innerIt != points.end(); innerIt++) {
+            auto& nextPoint = *innerIt;
+            sqDistances.emplace_back(currPoint, nextPoint);
+        }
+    }
+
+    // Radix sort on squared distances
+    long maxSqDistance = std::max_element(sqDistances.begin(), sqDistances.end(), Distance::Comp())->squaredDistance;
+    long maxDigits = 1;
+    while (maxSqDistance >= 10) {
+        maxSqDistance /= 10;
+        maxDigits++;
+    }
+    radixSort(sqDistances, maxDigits);
+
+    // Iterate and use UFDS to join circuits
+    UnionFind uf;
+    for (auto it = sqDistances.begin(); it != sqDistances.end(); it++) {
+        uf.unionSet(it->from, it->to);
+    }
+    std::println("{}", uf.sizeOfSet(sqDistances[0].to));
 
     // Timer end
     auto stop = std::chrono::high_resolution_clock::now();

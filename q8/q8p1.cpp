@@ -10,6 +10,9 @@
 #include <chrono>
 #include <print>
 #include <functional>
+#include <cassert>
+
+#define NUM_CONNECTIONS 1000
 
 struct Coord {
     long x;
@@ -229,11 +232,14 @@ int main(int argc, char *argv[]) {
 
     // Iterate and use UFDS to join circuits O(n^2)
     UnionFind uf;
-    for (auto it = sqDistances.begin(); it != sqDistances.end(); it++) uf.unionSet(it->from, it->to);
+    for (long i  = 0; i < NUM_CONNECTIONS; i++) uf.unionSet(sqDistances[i].from, sqDistances[i].to);
     
     // Get UFDS unique set sizes O(n)
     std::unordered_set<long> uniqueSetSizes;
-    for (auto it = uf.setSize.begin(); it != uf.setSize.end(); it++) uniqueSetSizes.insert(it->second);
+    for (auto it = uf.setSize.begin(); it != uf.setSize.end(); it++) {
+        Coord clone(it->first.x, it->first.y, it->first.z);
+        uniqueSetSizes.insert(uf.sizeOfSet(uf.findSet(clone)));
+    }
     std::vector<long> uniqueSetSizesVector; uniqueSetSizesVector.reserve(uniqueSetSizes.size());
     for (auto it = uniqueSetSizes.begin(); it != uniqueSetSizes.end(); it++) uniqueSetSizesVector.emplace_back(*it);
 
@@ -245,11 +251,12 @@ int main(int argc, char *argv[]) {
         maxDigits1++;
     }
     radixSort(uniqueSetSizesVector, maxDigits1);
-    /*for (auto it = uniqueSetSizesVector.begin(); it != uniqueSetSizesVector.end(); it++) std::println("{}", *it);*/
 
     // Get 3 largest set sizes and multiply O(1)
     out = 1;
-    for (int i = uniqueSetSizesVector.size() - 1; i >= uniqueSetSizesVector.size() - 3; i--) out *= uniqueSetSizesVector[i];
+    out *= uniqueSetSizesVector[uniqueSetSizesVector.size() - 1];
+    out *= uniqueSetSizesVector[uniqueSetSizesVector.size() - 2];
+    out *= uniqueSetSizesVector[uniqueSetSizesVector.size() - 3];
     std::println("Out {}", out);
 
     // Timer end

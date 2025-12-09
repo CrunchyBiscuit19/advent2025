@@ -6,6 +6,7 @@
 #include <regex>
 #include <algorithm>
 #include <unordered_map>
+#include <unordered_set>
 #include <chrono>
 #include <print>
 #include <functional>
@@ -42,7 +43,9 @@ struct Coord {
         }
     };
 
-    bool operator==(Coord const&) const = default;
+    bool operator==(Coord const& rhs) const { 
+        return x == rhs.x && y == rhs.y && z == rhs.z; 
+    }
 };
 template <>
 struct std::formatter<Coord> : std::formatter<std::string> {
@@ -74,7 +77,7 @@ struct std::formatter<Distance> : std::formatter<std::string> {
 };
 
 class UnionFind {                                
-private:
+public:
     std::unordered_map<Coord, Coord, Coord::Hash, Coord::Eq> p; 
     std::unordered_map<Coord, long, Coord::Hash, Coord::Eq> rank;                           
     std::unordered_map<Coord, long, Coord::Hash, Coord::Eq> setSize;                           
@@ -86,7 +89,6 @@ private:
         setSize.emplace(i, 1);
     }
 
-public:
     UnionFind() : numSets(0) {}
 
     Coord& findSet(Coord& i) {
@@ -113,13 +115,11 @@ public:
 
     void unionSet(Coord& i, Coord& j) {
         if (isSameSet(i, j)) return;                 
-        auto x = findSet(i), y = findSet(j);  
-        Coord& higherRankNode = i;
-        Coord& lowerRankNode = j;
-        if (rank.at(j) > rank.at(i)) {
-            higherRankNode = j;
-            lowerRankNode = i;
-        }
+        auto& x = findSet(i);
+        auto& y = findSet(j);  
+        Coord& higherRankNode = x;
+        Coord& lowerRankNode = y;
+        if (rank.at(y) > rank.at(x)) std::swap(higherRankNode, lowerRankNode);
         p.at(lowerRankNode) = higherRankNode;
         if (rank.at(higherRankNode) == rank.at(lowerRankNode)) rank.at(higherRankNode)++;
         setSize.at(higherRankNode) += setSize.at(lowerRankNode);
@@ -144,6 +144,29 @@ void radixSort(std::vector<Distance>& sqDistances, long maxDigits) {
 		for (long i = 0; i < base; i++) {
 			for (int j = 0; j < holder[i].size(); j++) {
 				sqDistances[index++] = holder[i][j];
+			}
+			holder[i].clear();
+		}
+	}
+}
+
+void radixSort(std::vector<long>& v, long maxDigits) {
+	long base = 10;
+	std::vector<std::vector<long>> holder;
+    holder.resize(base);
+
+	// Iterate over each digit (w)
+	for (long sig = 0; sig < maxDigits; sig++) {
+		// Iterate over each number (n) at current digit and place into holder accordingly
+		for (long i = 0; i < v.size(); i++) {
+            long digit = static_cast<long>(v[i] / std::pow(base, sig)) % base;
+            holder[digit].emplace_back(v[i]);
+		}
+		// Iterate over each digit in the base (k) and place it's subarrays elements back into a in order
+		long index = 0;
+		for (long i = 0; i < base; i++) {
+			for (int j = 0; j < holder[i].size(); j++) {
+				v[index++] = holder[i][j];
 			}
 			holder[i].clear();
 		}
@@ -185,7 +208,7 @@ int main(int argc, char *argv[]) {
     }
     file.close();
 
-    // Get all squared distances
+    // Get all squared distances O(n^2)
     std::vector<Distance> sqDistances;
     for (auto it = points.begin(); it != points.end(); it++) { 
         auto& currPoint = *it;
@@ -194,8 +217,8 @@ int main(int argc, char *argv[]) {
             sqDistances.emplace_back(currPoint, nextPoint);
         }
     }
-
-    // Radix sort on squared distances
+    
+    // Radix sort on squared distances O(n^2)
     long maxSqDistance = std::max_element(sqDistances.begin(), sqDistances.end(), Distance::Comp())->squaredDistance;
     long maxDigits = 1;
     while (maxSqDistance >= 10) {
@@ -204,17 +227,35 @@ int main(int argc, char *argv[]) {
     }
     radixSort(sqDistances, maxDigits);
 
-    // Iterate and use UFDS to join circuits
+    // Iterate and use UFDS to join circuits O(n^2)
     UnionFind uf;
-    for (auto it = sqDistances.begin(); it != sqDistances.end(); it++) {
-        uf.unionSet(it->from, it->to);
+    for (auto it = sqDistances.begin(); it != sqDistances.end(); it++) uf.unionSet(it->from, it->to);
+    
+    // Get UFDS unique set sizes O(n)
+    std::unordered_set<long> uniqueSetSizes;
+    for (auto it = uf.setSize.begin(); it != uf.setSize.end(); it++) uniqueSetSizes.insert(it->second);
+    std::vector<long> uniqueSetSizesVector; uniqueSetSizesVector.reserve(uniqueSetSizes.size());
+    for (auto it = uniqueSetSizes.begin(); it != uniqueSetSizes.end(); it++) uniqueSetSizesVector.emplace_back(*it);
+
+    // Sort unique set sizes O(n)
+    long maxSetSize = *std::max_element(uniqueSetSizesVector.begin(), uniqueSetSizesVector.end());
+    long maxDigits1 = 1;
+    while (maxSetSize >= 10) {
+        maxSetSize /= 10;
+        maxDigits1++;
     }
-    std::println("{}", uf.sizeOfSet(sqDistances[0].to));
+    radixSort(uniqueSetSizesVector, maxDigits1);
+    /*for (auto it = uniqueSetSizesVector.begin(); it != uniqueSetSizesVector.end(); it++) std::println("{}", *it);*/
+
+    // Get 3 largest set sizes and multiply O(1)
+    out = 1;
+    for (int i = uniqueSetSizesVector.size() - 1; i >= uniqueSetSizesVector.size() - 3; i--) out *= uniqueSetSizesVector[i];
+    std::println("Out {}", out);
 
     // Timer end
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-    std::cout << duration.count() << "μs" << std::endl;
+    std::println("{}μs", duration.count());
 
     return 0;
 }

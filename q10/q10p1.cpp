@@ -43,7 +43,6 @@ int main(int argc, char *argv[]) {
                 tgt |= 1 << (i - 1);
             }
         }
-        std::println("Target {}", tgt);
         
         // Parse edges
         std::vector<long> edges;
@@ -59,7 +58,6 @@ int main(int argc, char *argv[]) {
             }
             edges.emplace_back(edge);
             line = edgeMatch.suffix().str();
-            std::println("Edge {}", edge);
         }
         
         // BFS traversal
@@ -80,7 +78,6 @@ int main(int argc, char *argv[]) {
             }
         }
         out += distance[tgt];
-        std::println("{} button presses to {}", distance[tgt], tgt);
     }
     file.close();
   

@@ -13,7 +13,7 @@
 #include <functional>
 #include <cassert>
 
-#define INF_DISTANCE 1e180
+#define INF_DISTANCE 1e18
 #define LONGEST_STATE 12
 
 class State {
@@ -34,7 +34,11 @@ public:
         state[last++] = a;
     }
 
-    std::string toString() {
+    void set_1(int i) {
+        state[i] = 1;
+    }
+
+    std::string toString() const {
         std::string out;
         for (int i = 0; i < state.size(); i++) {
             out += std::format("{}", state[i]);
@@ -56,6 +60,7 @@ public:
 
     State operator+(const State& rhs) {
         State s;
+        s += *this;
         s += rhs; 
         return s; 
     }
@@ -66,23 +71,23 @@ public:
     }
 
     bool operator>(const State& rhs) {
-        for (int i = 0; i < state.size(); i++) if (state[i] <= rhs.state[i]) return false;
-        return true;
+        for (int i = 0; i < state.size(); i++) if (state[i] > rhs.state[i]) return true;
+        return false;
     }
 
     bool operator>=(const State& rhs) {
-        for (int i = 0; i < state.size(); i++) if (state[i] < rhs.state[i]) return false;
-        return true;
+        for (int i = 0; i < state.size(); i++) if (state[i] >= rhs.state[i]) return true;
+        return false;
     }
 
     bool operator<(const State& rhs) {
-        for (int i = 0; i < state.size(); i++) if (state[i] >= rhs.state[i]) return false;
-        return true;
+        for (int i = 0; i < state.size(); i++) if (state[i] < rhs.state[i]) return true;
+        return false;
     }
 
     bool operator<=(const State& rhs) {
-        for (int i = 0; i < state.size(); i++) if (state[i] > rhs.state[i]) return false;
-        return true;
+        for (int i = 0; i < state.size(); i++) if (state[i] <= rhs.state[i]) return true;
+        return false;
     }
 
     struct Hash {
@@ -143,27 +148,40 @@ int main(int argc, char *argv[]) {
             std::sregex_token_iterator it(edgeLights.begin(), edgeLights.end(), edgeDelimiter, -1);
             std::sregex_token_iterator end;
             while (it != end) {
-                edge.emplace_back(std::stol(it->str()));
+                edge.set_1(std::stol(it->str()));
                 it++;
             }
+            //std::println("Adding edge {}", edge.toString());
             edges.emplace_back(edge);
             line = edgeMatch.suffix().str();
         }
         
         // BFS traversal
-        std::unordered_map<const State&, long> distance; 
-        std::queue<const State&, long> queue;
+        std::unordered_map<State, long, State::Hash, State::Eq> distance; 
+        std::queue<State> queue;
 
         distance.emplace(source, 0);
         distance.at(source) = 0;
         queue.push(source);
         while (!queue.empty()) { 
-            State& currState = queue.front(); queue.pop();
+            State currState = queue.front(); queue.pop();
+            std::println("Now visiting {}", currState.toString());
             for (int i = 0; i < edges.size(); i++) { 
                 State nextState = currState + edges[i]; 
-                if (nextState > tgtState) continue; // No more edges if it already exceeds target state in at least one field
-                if (distance.find(nextState) == distance.end()) queue.push(nextState);
-                if (distance.at(currState) + 1 < distance.at(nextState)) distance.at(nextState) = distance.at(currState) + 1;
+                if (nextState > tgtState) {
+                    std::println("{} is more than tgt", nextState.toString());
+                    continue; // No more edges if it already exceeds target state in at least one field
+                }
+                std::println("Neighbour calculation {} + {} = {}", currState.toString(), edges[i].toString(), nextState.toString());
+                distance.emplace(nextState, INF_DISTANCE);
+                std::println("Neighbour holds {} distance", distance.at(nextState));
+                if (distance.at(nextState) == INF_DISTANCE) {
+                    std::println("Enqueueing {}", nextState.toString());
+                    queue.push(nextState);
+                } 
+                if (distance.at(currState) + 1 < distance.at(nextState)) {
+                    distance.at(nextState) = distance.at(currState) + 1;
+                }
             }
         }
         out += distance.at(tgtState);

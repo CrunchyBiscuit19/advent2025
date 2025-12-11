@@ -135,7 +135,7 @@ int main(int argc, char *argv[]) {
         }
         
         // Parse edges
-        std::vector<const State> edges;
+        std::vector<State> edges;
         std::smatch edgeMatch;
         while (std::regex_search(line, edgeMatch, edgeRegex)) {
             State edge;
@@ -151,21 +151,22 @@ int main(int argc, char *argv[]) {
         }
         
         // BFS traversal
-        /*std::unordered_map<const State&, long> distance; 
+        std::unordered_map<const State&, long> distance; 
         std::queue<const State&, long> queue;
 
         distance.emplace(source, 0);
         distance.at(source) = 0;
         queue.push(source);
         while (!queue.empty()) { 
-            const State& currNode = queue.front(); queue.pop();
+            State& currState = queue.front(); queue.pop();
             for (int i = 0; i < edges.size(); i++) { 
-                State nextNode = currNode + edges[i]; 
-                if (distance.at(nextNode) == INF_DISTANCE) queue.push(nextEdge);
-                if (distance[currEdge] + 1 < distance[nextEdge]) distance[nextEdge] = distance[currEdge] + 1;
+                State nextState = currState + edges[i]; 
+                if (nextState > tgtState) continue; // No more edges if it already exceeds target state in at least one field
+                if (distance.find(nextState) == distance.end()) queue.push(nextState);
+                if (distance.at(currState) + 1 < distance.at(nextState)) distance.at(nextState) = distance.at(currState) + 1;
             }
         }
-        out += distance[tgt];*/
+        out += distance.at(tgtState);
     }
     file.close();
   

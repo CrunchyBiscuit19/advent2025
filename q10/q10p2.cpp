@@ -151,40 +151,10 @@ int main(int argc, char *argv[]) {
                 edge.set_1(std::stol(it->str()));
                 it++;
             }
-            //std::println("Adding edge {}", edge.toString());
             edges.emplace_back(edge);
             line = edgeMatch.suffix().str();
         }
         
-        // BFS traversal
-        std::unordered_map<State, long, State::Hash, State::Eq> distance; 
-        std::queue<State> queue;
-
-        distance.emplace(source, 0);
-        distance.at(source) = 0;
-        queue.push(source);
-        while (!queue.empty()) { 
-            State currState = queue.front(); queue.pop();
-            std::println("Now visiting {}", currState.toString());
-            for (int i = 0; i < edges.size(); i++) { 
-                State nextState = currState + edges[i]; 
-                if (nextState > tgtState) {
-                    std::println("{} is more than tgt", nextState.toString());
-                    continue; // No more edges if it already exceeds target state in at least one field
-                }
-                std::println("Neighbour calculation {} + {} = {}", currState.toString(), edges[i].toString(), nextState.toString());
-                distance.emplace(nextState, INF_DISTANCE);
-                std::println("Neighbour holds {} distance", distance.at(nextState));
-                if (distance.at(nextState) == INF_DISTANCE) {
-                    std::println("Enqueueing {}", nextState.toString());
-                    queue.push(nextState);
-                } 
-                if (distance.at(currState) + 1 < distance.at(nextState)) {
-                    distance.at(nextState) = distance.at(currState) + 1;
-                }
-            }
-        }
-        out += distance.at(tgtState);
     }
     file.close();
   

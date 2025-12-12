@@ -13,8 +13,18 @@
 #include <functional>
 #include <cassert>
 
-#define YOU "you"
+#define SVR "svr"
+#define DAC "dac"
+#define FFT "fft"
 #define OUT "out"
+
+#define SVRDAC 0
+#define SVRFFT 1
+#define DACFFT 2
+#define DACOUT 3
+#define FFTDAC 4
+#define FFTOUT 5
+#define NUM_STATES 6
 
 template<class S, class T>
 class BiUnorderedMap {
@@ -136,46 +146,66 @@ int main(int argc, char *argv[]) {
     }
     file.close();
 
-    // Do normal BFS remove all nodes inaccessible from 'you'
-    queue.push(nodeIdMap.to_at(YOU));
-    visited[nodeIdMap.to_at(YOU)] = true;
-    while (!queue.empty()) {
-        auto u = queue.front(); queue.pop();        
-        for (auto v : adjacencyList.at(u)) {
-            if (visited[v] == false) { 
-                visited[v] = true; 
-                queue.push(v);                     
+    // Find svr->fft, svr->dac, fft->dac, fft->out, dac->fft, dac->out number of paths respectively
+    std::vector<long> results; results.resize(NUM_STATES);
+    std::vector<long> keyNodes = {nodeIdMap.to_at(SVR), nodeIdMap.to_at(FFT), nodeIdMap.to_at(DAC)};
+    for (auto& keyNode : keyNodes) {
+        // Reset all BFS data structures
+        std::vector<std::vector<long>> adjacencyListCp = adjacencyList;
+        std::vector<long> inDegreesCp = inDegrees;
+        std::vector<long> topoOrderCp; topoOrderCp.reserve(lastId);
+        std::vector<long> visitedCp = visited;
+        std::vector<long> numPathsCp = numPaths;
+
+        // Do normal BFS remove all nodes inaccessible from keyNode
+        queue.push(keyNode);
+        visitedCp[keyNode] = true;
+        while (!queue.empty()) {
+            auto u = queue.front(); queue.pop();        
+            for (auto v : adjacencyListCp.at(u)) {
+                if (visitedCp[v] == false) { 
+                    visitedCp[v] = true; 
+                    queue.push(v);                     
+                }
             }
         }
-    }
-    for (long i = 0; i < visited.size(); i++) {
-        if (visited[i] == false) {
-            for (int j = 0; j < adjacencyList[i].size(); j++) inDegrees[adjacencyList[i][j]]--;
-            adjacencyList[i].clear();
-            inDegrees[i] = -1;
-            topoOrder[i] = -1;
-            numPaths[i] = -1;
+        for (int i = 0; i < visitedCp.size(); i++) {
+            if (visitedCp[i]) continue;
+            for (int j = 0; j < adjacencyListCp[i].size(); j++) inDegreesCp[adjacencyListCp[i][j]]--;
+            adjacencyListCp[i].clear();
+            inDegreesCp[i] = -1;
+            numPathsCp[i] = -1;
         }
-    }
 
-    // Do Kahn's BFS to get topological sort
-    for (long i = 0; i < inDegrees.size(); i++) {
-        if (inDegrees[i] == 0) queue.push(i);
-    }
-    while (!queue.empty()) {
-        long u = queue.front(); queue.pop();
-        topoOrder.emplace_back(u);
-        for (long v: adjacencyList[u]) {
-            inDegrees[v]--;
-            if (inDegrees[v] == 0) queue.push(v);
+        // Do Kahn's BFS to get topological sort
+        for (long i = 0; i < inDegreesCp.size(); i++) if (inDegreesCp[i] == 0) queue.push(i);
+        while (!queue.empty()) {
+            long u = queue.front(); queue.pop();
+            topoOrderCp.emplace_back(u);
+            for (long v: adjacencyListCp[u]) {
+                inDegreesCp[v]--;
+                if (inDegreesCp[v] == 0) queue.push(v);
+            }
         }
-    }
 
-    // Calculate number of paths in topological order
-    numPaths[topoOrder[0]] = 1;
-    for (int i = 0; i < topoOrder.size(); i++) {
-        for (int j = 0; j < adjacencyList[topoOrder[i]].size(); j++) {
-            numPaths[adjacencyList[topoOrder[i]][j]] += numPaths[topoOrder[i]];
+        // Calculate number of paths in topological order
+        numPathsCp[topoOrderCp[0]] = 1;
+        for (int i = 0; i < topoOrderCp.size(); i++) {
+            for (int j = 0; j < adjacencyListCp[topoOrderCp[i]].size(); j++) {
+                numPathsCp[adjacencyListCp[topoOrderCp[i]][j]] += numPathsCp[topoOrderCp[i]];
+            }
+        }
+
+        // Get relevant data
+        if (keyNode == nodeIdMap.to_at(SVR)) {
+            results[SVRDAC] = numPathsCp[nodeIdMap.to_at(DAC)] == -1 ? 0 : numPathsCp[nodeIdMap.to_at(DAC)];
+            results[SVRFFT] = numPathsCp[nodeIdMap.to_at(FFT)] == -1 ? 0 : numPathsCp[nodeIdMap.to_at(FFT)];
+        } else if (keyNode == nodeIdMap.to_at(FFT)) {
+            results[FFTDAC] = numPathsCp[nodeIdMap.to_at(DAC)] == -1 ? 0 : numPathsCp[nodeIdMap.to_at(DAC)];
+            results[FFTOUT] = numPathsCp[nodeIdMap.to_at(OUT)] == -1 ? 0 : numPathsCp[nodeIdMap.to_at(OUT)];
+        } else {
+            results[DACFFT] = numPathsCp[nodeIdMap.to_at(FFT)] == -1 ? 0 : numPathsCp[nodeIdMap.to_at(FFT)];
+            results[DACOUT] = numPathsCp[nodeIdMap.to_at(OUT)] == -1 ? 0 : numPathsCp[nodeIdMap.to_at(OUT)];
         }
     }
     
@@ -185,7 +215,10 @@ int main(int argc, char *argv[]) {
     std::println("{}μs", duration.count());
 
     // Print results
-    std::println("{}", numPaths[nodeIdMap.to_at(OUT)]);
+    long out = 0;
+    out += results[SVRFFT] * results[FFTDAC] * results[DACOUT];
+    out += results[SVRDAC] * results[DACFFT] * results[FFTOUT];
+    std::println("{}", out);
 
     return 0;
 }

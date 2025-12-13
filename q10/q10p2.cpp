@@ -6,6 +6,7 @@
 #include <regex>
 #include <algorithm>
 #include <unordered_map>
+#include <set>
 #include <unordered_set>
 #include <queue>
 #include <chrono>
@@ -13,100 +14,7 @@
 #include <functional>
 #include <cassert>
 
-#define INF_DISTANCE 1e18
 #define LONGEST_STATE 12
-
-class State {
-private:
-    std::vector<long> state;
-    long last;
-
-public:
-    State(): last(0) {
-        state.resize(LONGEST_STATE);
-        for (int i = 0; i < state.size(); i++) {
-            state[i] = 0;
-        }
-    }
-
-    void emplace_back(long a) {
-        if (last == LONGEST_STATE) return;
-        state[last++] = a;
-    }
-
-    void set_1(int i) {
-        state[i] = 1;
-    }
-
-    std::string toString() const {
-        std::string out;
-        for (int i = 0; i < state.size(); i++) {
-            out += std::format("{}", state[i]);
-            out += ' ';
-        }
-        return out;
-    }
-
-    long operator[](long i) {
-        return state[i];
-    }
-
-    State& operator+=(const State& rhs) {
-        for (int i = 0; i < state.size(); i++) {
-            state[i] += rhs.state[i];
-        }
-        return *this;
-    }
-
-    State operator+(const State& rhs) {
-        State s;
-        s += *this;
-        s += rhs; 
-        return s; 
-    }
-
-    bool operator==(const State& rhs) {
-        for (int i = 0; i < state.size(); i++) if (state[i] != rhs.state[i]) return false;
-        return true;
-    }
-
-    bool operator>(const State& rhs) {
-        for (int i = 0; i < state.size(); i++) if (state[i] > rhs.state[i]) return true;
-        return false;
-    }
-
-    bool operator>=(const State& rhs) {
-        for (int i = 0; i < state.size(); i++) if (state[i] >= rhs.state[i]) return true;
-        return false;
-    }
-
-    bool operator<(const State& rhs) {
-        for (int i = 0; i < state.size(); i++) if (state[i] < rhs.state[i]) return true;
-        return false;
-    }
-
-    bool operator<=(const State& rhs) {
-        for (int i = 0; i < state.size(); i++) if (state[i] <= rhs.state[i]) return true;
-        return false;
-    }
-
-    struct Hash {
-        std::size_t operator()(const State& a) const noexcept {
-            std::size_t h = 0;
-            for (int i = 0; i < a.state.size(); i++) {
-                h ^= std::hash<std::size_t>{}(a.state[i]) + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2);
-            }
-            return h;
-        }
-    };
-
-    struct Eq {
-        bool operator()(const State& a, const State& b) const noexcept {
-            for (int i = 0; i < a.state.size(); i++) if (a.state[i] != b.state[i]) return false;
-            return true;
-        }
-    };
-};
 
 int main(int argc, char *argv[]) {
     // Timer start
@@ -119,7 +27,6 @@ int main(int argc, char *argv[]) {
 
     // Get all points
     long out = 0;
-    State source;
     std::regex tgtRegex("\\{(.*?)\\}");
     std::regex tgtDelimiter(",");
     std::regex edgeRegex("\\((.*?)\\)");
@@ -128,33 +35,57 @@ int main(int argc, char *argv[]) {
         line.erase(remove_if(line.begin(), line.end(), isspace), line.end());
         
         // Parse target
-        State tgtState;
-        std::smatch tgtMatch;
-        std::regex_search(line, tgtMatch, tgtRegex);
+        std::vector<long> tgt; tgt.resize(LONGEST_STATE); std::fill(tgt.begin(), tgt.end(), 0);
+        std::smatch tgtMatch; std::regex_search(line, tgtMatch, tgtRegex);
         std::string tgtString = tgtMatch.str().substr(1, tgtMatch.str().size() - 2);
-        std::sregex_token_iterator it(tgtString.begin(), tgtString.end(), tgtDelimiter, -1);
-        std::sregex_token_iterator end;
-        while (it != end) {
-            tgtState.emplace_back(std::stol(it->str()));
+        std::sregex_token_iterator it(tgtString.begin(), tgtString.end(), tgtDelimiter, -1); std::sregex_token_iterator end;
+        for (int i = 0; it != end; i++) {
+            tgt[i] = std::stol(it->str());
             it++;
         }
         
         // Parse edges
-        std::vector<State> edges;
+        std::vector<std::set<long, std::greater<long>>> edgeSets; edgeSets.resize(LONGEST_STATE); 
         std::smatch edgeMatch;
         while (std::regex_search(line, edgeMatch, edgeRegex)) {
-            State edge;
+            long edge = 0;
             std::string edgeLights = edgeMatch.str().substr(1, edgeMatch.str().size() - 2);
-            std::sregex_token_iterator it(edgeLights.begin(), edgeLights.end(), edgeDelimiter, -1);
-            std::sregex_token_iterator end;
-            while (it != end) {
-                edge.set_1(std::stol(it->str()));
+            std::sregex_token_iterator it(edgeLights.begin(), edgeLights.end(), edgeDelimiter, -1); std::sregex_token_iterator end;
+            std::vector<long> positions;
+            for (int i = 0; it != end; i++) {
+                long position = std::stol(it->str());
+                positions.emplace_back(position);
+                edge |= 1 << position;
                 it++;
             }
-            edges.emplace_back(edge);
+            for (auto& position: positions) {
+                edgeSets[position].insert(edge);
+            }
             line = edgeMatch.suffix().str();
         }
-        
+
+        // DEBUG
+        int a = 1;
+        for (auto& edgeSet: edgeSets) {
+            std::print("{}: ", a++);
+            for (auto& edge: edgeSet) {
+                std::print("{} ", edge);
+            }
+            std::println("");
+        }
+
+        // Keep subtracting until tgt is all zeroes
+        while (true) {
+            // Find largest element, largest element index (if multiple largest, get the first) O(1)
+            const auto& maxIt = std::max_element(tgt.begin(), tgt.end());
+            long maxIndex = std::distance(tgt.begin(), maxIt);
+            long max = *maxIt;
+            // Pick largest edge that contains 1 at maxIndex, and does not have 0 at any of the 1s
+            long nextEdge = *edgeSets[maxIndex].begin();
+            // Multiply the edge by either smallest integer at any of the 1s, or until there is a new largest or equal element
+
+
+        }
     }
     file.close();
   
